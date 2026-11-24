@@ -1,0 +1,50 @@
+Name='Unet_20to10'
+
+DO_TRAINING=False
+REPRODUCIBILITY=False # no tocar nunca
+LOG1P_EXP1M_TRANSFORM=True # no tocar nunca
+SAVE_PREDICTIONS=False
+PREDICTIONS_OF_REAL_CASE=True
+VISUALIZE_PREDICTIONS=True
+
+FIRST_LAYER='SG' # 'SG' o 'BI' (SubGrid o Bicubic Interpolation) # no tocar nunca
+
+WHICH_LOSS='MAESoftCSILoss' # no tocar nunca
+ALPHA_CSI=0.001
+
+
+# DATA PATHS
+TOPO_DATA_PATHS=['/working_disk/pbenito/data/Unet_20to10/dem_fine10', '/working_disk/pbenito/data/Unet_20to10/mann_fine10'] # includes padding
+Z_FINE_PATH='/working_disk/pbenito/data/Unet_20to10/z_fine10'
+H_COARSE_DATA_PATH='/working_disk/pbenito/data/Unet_20to10/synthetic/h_coarse20' # includes padding
+H_FINE_DATA_PATH='/working_disk/pbenito/data/Unet_20to10/synthetic/h_fine10' # does not include padding
+
+# DATA PATHS FOR REAL CASE PREDICTIONS
+H_COARSE_REAL_CASE_DATA_PATH='/working_disk/pbenito/data/Unet_20to10/real_case/h_coarse20_real_case' # includes padding
+H_FINE_REAL_CASE_DATA_PATH='/working_disk/pbenito/data/Unet_20to10/real_case/h_fine10_real_case' # does not include padding
+
+HOTSTART=False # no tocar nunca
+MODEL_SAVE_PATH='/working_disk/pbenito/models/20to10/Unet_20to10_exp5.pth'
+NORM_PARAMS_SAVE_PATH='/working_disk/pbenito/models/20to10/Unet_20to10_norm_params_exp5.pt'
+VISUALIZATION_SAVE_PATH='/working_disk/pbenito/results/Unet_20to10_exp5'
+HISTORY_SAVE_PATH='/working_disk/pbenito/results/Unet_20to10_exp5'
+
+THRESHOLD=0.01
+TOTAL_PIXELS_TO_CROP_ON_EACH_DIM=0
+CELLSIZE_FINE=10
+CELLSIZE_RATIO=2 # coarse_cellsize//fine_cellsize
+GROUPING_PARAMETER_FOR_SUBGRID_ROWS=1 # no tocar nunca
+GROUPING_PARAMETER_FOR_SUBGRID_COLUMNS=1 # no tocar nunca
+
+SEED=795236
+
+CLIP_VALUE_MIN=0.
+CLIP_VALUE_MAX=None
+
+LAST_ACTIVATION_FUNCTION='None'
+BATCH_SIZE=4
+EPOCHS=2000
+INITIAL_LEARNING_RATE=0.005
+EARLY_STOPPING_PATIENCE=75
+
+MASK_FINE_MAP_TO_THRESHOLD=False # if True, masks fine target pixels <THRESHOLD to 0 # no tocar nunca

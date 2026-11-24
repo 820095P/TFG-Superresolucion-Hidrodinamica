@@ -1,0 +1,393 @@
+Global rank: 0, Local rank: 0, World size: 1
+Dominio de evaluación: máscara geográfica | ruta usada: /working_disk/pbenito/data/Unet_T20to10_R40to10/z_fine10 | dimensiones: 548 filas x 292 columnas | celdas válidas por campo: 85610
+Dominio de evaluación: máscara geográfica | ruta DEM usada: /working_disk/pbenito/data/Unet_T20to10_R40to10/z_fine10
+
+CONFIGURACIÓN DEL MODELO:
+----------------------------------------
+Name: Unet_T20to10_R40to10
+DO_TRAINING: False
+REPRODUCIBILITY: False
+LOG1P_EXP1M_TRANSFORM: True
+SAVE_PREDICTIONS: False
+PREDICTIONS_OF_REAL_CASE: True
+VISUALIZE_PREDICTIONS: True
+FIRST_LAYER: SG
+WHICH_LOSS: MAESoftCSILoss
+ALPHA_CSI: 0.001
+TOPO_DATA_PATHS: ['/working_disk/pbenito/data/Unet_T20to10_R40to10/dem_fine10', '/working_disk/pbenito/data/Unet_T20to10_R40to10/mann_fine10']
+Z_FINE_PATH: /working_disk/pbenito/data/Unet_T20to10_R40to10/z_fine10
+H_COARSE_DATA_PATH: /working_disk/pbenito/data/Unet_T20to10_R40to10/synthetic/h_coarse20
+H_FINE_DATA_PATH: /working_disk/pbenito/data/Unet_T20to10_R40to10/synthetic/h_fine10
+H_COARSE_REAL_CASE_DATA_PATH: /working_disk/pbenito/data/Unet_T20to10_R40to10/real_case/h_coarse40_real_case
+H_FINE_REAL_CASE_DATA_PATH: /working_disk/pbenito/data/Unet_T20to10_R40to10/real_case/h_fine10_real_case
+HOTSTART: False
+MODEL_SAVE_PATH: /working_disk/pbenito/models/20to10/Unet_20to10_exp2.pth
+NORM_PARAMS_SAVE_PATH: /working_disk/pbenito/models/20to10/Unet_20to10_norm_params_exp2.pt
+VISUALIZATION_SAVE_PATH: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2
+HISTORY_SAVE_PATH: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2
+THRESHOLD: 0.01
+TOTAL_PIXELS_TO_CROP_ON_EACH_DIM: 0
+CELLSIZE_FINE: 10
+CELLSIZE_RATIO: 2
+CELLSIZE_RATIO_TRAIN: 2
+CELLSIZE_RATIO_REAL_CASE: 4
+GROUPING_PARAMETER_FOR_SUBGRID_ROWS: 1
+GROUPING_PARAMETER_FOR_SUBGRID_COLUMNS: 1
+SEED: 795236
+CLIP_VALUE_MIN: 0.0
+CLIP_VALUE_MAX: None
+LAST_ACTIVATION_FUNCTION: None
+BATCH_SIZE: 4
+EPOCHS: 2000
+INITIAL_LEARNING_RATE: 0.005
+EARLY_STOPPING_PATIENCE: 75
+MASK_FINE_MAP_TO_THRESHOLD: False
+----------------------------------------
+Effective CELLSIZE_RATIO train/test: 2
+Effective CELLSIZE_RATIO real case: 4
+Device for rank 0: cuda:0
+[Rank 0] After creating per-rank datasets: CPU RAM = 1.95 GB
+[Rank 0] After creating per-rank datasets: GPU mem allocated = 0.00 GB, reserved = 0.00 GB
+Rank 0: Normalizing data...
+Loading saved normalization parameters for evaluation: /working_disk/pbenito/models/20to10/Unet_20to10_norm_params_exp2.pt
+/home/colabghc/pbenito/UNet/main.py:87: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  saved_norm_params = torch.load(
+Normalization parameters:
+Xc_min: 0.000000, Xc_max: 2.088578
+Xt_min por canal: [225.40684509277344, 0.013000000268220901]
+Xt_max por canal: [400.38134765625, 0.10000000149011612]
+y_min:  0.000000, y_max:  2.091282
+z_min:  225.406845, z_max:  400.381348
+[Rank 0] After normalization: CPU RAM = 3.25 GB
+[Rank 0] After normalization: GPU mem allocated = 0.00 GB, reserved = 0.00 GB
+
+🔬 DATA DIAGNOSIS (GLOBAL VIEW)
+============================================================
+
+--- Rank 0 ---
+
+📊 TRAIN STATISTICS:
+Samples: 315
+NaN present: False, Inf present: False
+X_coarse range: (0.0, 1.0), mean: 0.005830, var: 0.001068
+X_topo channel 0 range: [0.000000, 1.000000], mean: 0.228494, var: 0.067569
+X_topo channel 1 range: [0.000000, 1.000000], mean: 0.206873, var: 0.063550
+y range: (0.0, 1.0), mean: 0.005559, var: 0.001236
+
+📊 VAL STATISTICS:
+Samples: 45
+NaN present: False, Inf present: False
+X_coarse range: (0.0, 0.9989630579948425), mean: 0.005972, var: 0.001146
+X_topo channel 0 range: [0.000000, 1.000000], mean: 0.228494, var: 0.067569
+X_topo channel 1 range: [0.000000, 1.000000], mean: 0.206873, var: 0.063550
+y range: (0.0, 0.9998713135719299), mean: 0.005703, var: 0.001316
+
+📊 TEST STATISTICS:
+Samples: 90
+NaN present: False, Inf present: False
+X_coarse range: (0.0, 1.00018310546875), mean: 0.005473, var: 0.001060
+X_topo channel 0 range: [0.000000, 1.000000], mean: 0.228494, var: 0.067569
+X_topo channel 1 range: [0.000000, 1.000000], mean: 0.206873, var: 0.063550
+y range: (0.0, 0.999955415725708), mean: 0.005229, var: 0.001215
+============================================================
+[Rank 0] After padding and moving to device: CPU RAM = 2.71 GB
+[Rank 0] After padding and moving to device: GPU mem allocated = 1.14 GB, reserved = 1.17 GB
+
+Building model...
+Using SubGrid interpolation of coarse input as first layer input.
+Model created and loaded successfully on 1 GPUs
+Total parameters: 8,048,519
+
+Loading best model for evaluation...
+/home/colabghc/pbenito/UNet/main.py:228: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  checkpoint = torch.load(cfg.MODEL_SAVE_PATH, map_location=device)
+
+=================================================================
+                       Global Test Results
+=================================================================
+Metric               |     UNet     |   Subgrid    |   Bicubic   
+-----------------------------------------------------------------
+Loss (Model Only)    |     N/A      |     N/A      |     N/A     
+MSE                  |     0.000024 |     0.010159 |     0.008089
+MAE                  |     0.000650 |     0.018400 |     0.015982
+Masked MSE           |     0.000167 |     0.059807 |     0.044370
+Masked MAE           |     0.003022 |     0.100075 |     0.076631
+Volume Rel Err (%)   |         1.16 |         2.03 |         5.48
+-----------------------------------------------------------------
+Metrics for threshold 0.01:
+HIT (%) @ 0.01       |        95.75 |        45.82 |        78.61
+FAR (%) @ 0.01       |         2.32 |        50.75 |        42.13
+CSI (%) @ 0.01       |        93.62 |        31.12 |        49.99
+=================================================================
+
+Training was not performed, so no training history to plot.
+
+Visualizando 6 muestras específicas: [ 0 10 20 60 80 89]
+ERROR RELATIVO PROMEDIO (MAE denormalized) DE TODOS LOS PÍXELES (DRY & WET) SOBRE LAS 6 samples:
+UNet:         : 8.77%
+Bicubic:     : 306.01%
+Classical Subgrid: 187.47%
+
+ERROR RELATIVO PROMEDIO (MAE denormalized) DE SOLAMENTE LOS PÍXELES WET (EN LA REALIDAD) SOBRE LAS 6 samples:
+UNet:         : 3.61%
+Bicubic:     : 111.42%
+Classical Subgrid: 161.17%
+MoTTY X11 proxy: Authorisation not recognised
+
+[36mIn case you are trying to start a graphical application with "sudo", read this article in order to avoid this issue:
+[35m[4mhttps://blog.mobatek.net/post/how-to-keep-X11-display-after-su-or-sudo/[0m
+
+
+/home/colabghc/pbenito/UNet/data_postprocessing.py:573: RuntimeWarning: All-NaN slice encountered
+  vmin = np.nanmin([np.nanmin(img) for img in images_to_scale])
+/home/colabghc/pbenito/UNet/data_postprocessing.py:574: RuntimeWarning: All-NaN slice encountered
+  vmax = np.nanmax([np.nanmax(img) for img in images_to_scale])
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_1.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_1.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_1.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_1.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_1.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_1.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_1.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_1.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_1.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_1.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_1.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_1.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_2.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_2.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_2.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_2.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_2.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_2.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_2.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_2.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_2.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_2.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_2.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_2.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_3.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_3.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_3.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_3.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_3.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_3.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_3.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_3.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_3.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_3.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_3.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_3.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_4.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_4.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_4.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_4.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_4.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_4.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_4.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_4.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_4.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_4.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_4.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_4.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_5.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_5.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_5.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_5.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_5.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_5.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_5.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_5.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_5.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_5.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_5.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_5.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_6.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_DEM_6.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_6.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_abs_err_6.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_6.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_GT_6.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_6.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_bin_err_6.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_6.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_coarse_cropped_6.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_6.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_pred_6.txt
+
+Making predictions for real case...
+
+Coarse simulation data shape: (90, 137, 73, 1)
+Fine simulation data shape: (90, 548, 292, 1)
+z_fine simulation data shape: (1, 548, 292, 1)
+Fine topographic features shape: (1, 548, 292, 2)
+Real case normalized ranges: DEM=[0.000000, 1.000000], MANN=[0.000000, 1.000000], z_fine=[0.000000, 1.000000]
+Instantes evaluados en el caso real: 90
+Métricas detalladas por imagen guardadas en: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_detailed_metrics_per_image.txt
+================================================================
+UNET REAL-CASE COMPUTATIONAL COST
+================================================================
+Samples: 90
+Batch size: 8
+Number of forward batches: 12
+UNet inference time: 1.134704 s
+Mean inference time per sample: 0.012608 s
+Baseline GPU memory allocated: 1.451 GB
+Peak GPU memory allocated: 5.923 GB
+Additional peak GPU memory: 4.472 GB
+Peak GPU memory reserved: 7.383 GB
+================================================================
+
+=================================================================
+                     Real Case Test Results
+=================================================================
+Metric               |     UNet     |   Subgrid    |   Bicubic   
+-----------------------------------------------------------------
+Loss (Model Only)    |     N/A      |     N/A      |     N/A     
+MSE                  |     0.023627 |     0.050543 |     0.034693
+MAE                  |     0.027168 |     0.040059 |     0.038559
+Masked MSE           |     0.105706 |     0.189293 |     0.134182
+Masked MAE           |     0.111240 |     0.163387 |     0.129176
+Volume Rel Err (%)   |        12.05 |         9.93 |        17.13
+-----------------------------------------------------------------
+Metrics for threshold 0.01:
+HIT (%) @ 0.01       |        74.06 |        27.39 |        71.51
+FAR (%) @ 0.01       |        43.89 |        46.35 |        59.10
+CSI (%) @ 0.01       |        46.89 |        22.15 |        35.17
+=================================================================
+
+Visualizando 6 muestras específicas: [ 0 10 20 60 80 89]
+ERROR RELATIVO PROMEDIO (MAE denormalized) DE TODOS LOS PÍXELES (DRY & WET) SOBRE LAS 6 samples:
+UNet:         : 389.09%
+Bicubic:     : 849.91%
+Classical Subgrid: 554.21%
+
+ERROR RELATIVO PROMEDIO (MAE denormalized) DE SOLAMENTE LOS PÍXELES WET (EN LA REALIDAD) SOBRE LAS 6 samples:
+UNet:         : 86.59%
+Bicubic:     : 109.78%
+Classical Subgrid: 209.51%
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_1.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_1.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_1.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_1.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_1.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_1.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_1.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_1.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_1.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_1.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_1.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_1.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_2.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_2.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_2.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_2.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_2.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_2.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_2.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_2.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_2.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_2.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_2.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_2.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_3.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_3.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_3.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_3.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_3.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_3.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_3.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_3.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_3.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_3.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_3.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_3.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_4.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_4.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_4.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_4.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_4.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_4.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_4.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_4.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_4.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_4.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_4.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_4.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_5.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_5.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_5.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_5.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_5.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_5.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_5.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_5.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_5.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_5.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_5.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_5.txt
+Saved individual DEM map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_6.png
+Saved individual DEM array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_DEM_6.txt
+Saved individual signed abs error map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_6.png
+Saved individual signed abs error array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_abs_err_6.txt
+Saved GT map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_6.png
+Saved individual GT array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_GT_6.txt
+Saved Bin Err map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_6.png
+Saved individual Bin Err array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_bin_err_6.txt
+Saved X_Coarse_cropped map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_6.png
+Saved individual X_Coarse_cropped array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_coarse_cropped_6.txt
+Saved UNet prediction map to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_6.png
+Saved individual UNet prediction array to: /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase_pred_6.txt
+Real case predictions saved to /working_disk/pbenito/results/Unet_T20to10_R40to10_exp2_RealCase...
+
+Generating additional visualizations for real case...
+Rank (global) 0: Error occurred: CUDA out of memory. Tried to allocate 626.00 MiB. GPU 0 has a total capacity of 9.67 GiB of which 108.94 MiB is free. Including non-PyTorch memory, this process has 9.55 GiB memory in use. Of the allocated memory 8.42 GiB is allocated by PyTorch, and 772.90 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/home/colabghc/pbenito/UNet/main.py", line 399, in main
+    generate_real_case_extra_visualizations(
+  File "/home/colabghc/pbenito/UNet/data_postprocessing.py", line 2820, in generate_real_case_extra_visualizations
+    pred = model(xb0, xb1)
+           ^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1643, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1459, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/unet_model.py", line 720, in forward
+    dec_res1 = self.dec_res1(merge1)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/unet_model.py", line 318, in forward
+    x = self.conv1(x)
+        ^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/conv.py", line 554, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/colabghc/pbenito/UNet/venv_Unet_pytorch/lib/python3.12/site-packages/torch/nn/modules/conv.py", line 549, in _conv_forward
+    return F.conv2d(
+           ^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 626.00 MiB. GPU 0 has a total capacity of 9.67 GiB of which 108.94 MiB is free. Including non-PyTorch memory, this process has 9.55 GiB memory in use. Of the allocated memory 8.42 GiB is allocated by PyTorch, and 772.90 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

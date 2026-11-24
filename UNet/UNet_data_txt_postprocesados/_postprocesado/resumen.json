@@ -1,0 +1,48 @@
+{
+  "estado": "COMPLETADO",
+  "inicio_utc": "2026-11-23T21:10:47.821697+00:00",
+  "entrada": "C:\\Users\\PC\\Desktop\\TFG\\ProyectoTFG\\UNet_data_txt",
+  "salida": "C:\\Users\\PC\\Desktop\\TFG\\ProyectoTFG\\UNet_data_txt_postprocesados",
+  "operacion": "Profundidad cero fuera del DEM propio de cada resolucion; interior sin cambios.",
+  "nota": "Postprocesamiento de salidas. No modifica la simulacion ni valida su fisica.",
+  "dems": {
+    "10": {
+      "cabecera": {
+        "ncols": 292.0,
+        "nrows": 548.0,
+        "xllcorner": 674583.0,
+        "yllcorner": 4604747.0,
+        "cellsize": 10.0,
+        "nodata_value": -9999.0
+      },
+      "celdas_validas": 85610,
+      "sha256": "2e124d42f41988850ec21ff3f46ff99514c0da4407953fdd97b360b7f3b72b3e"
+    },
+    "20": {
+      "cabecera": {
+        "ncols": 146.0,
+        "nrows": 274.0,
+        "xllcorner": 674593.0,
+        "yllcorner": 4604737.0,
+        "cellsize": 20.0,
+        "nodata_value": -9999.0
+      },
+      "celdas_validas": 21389,
+      "sha256": "7a5cec089bd52956b91d04ab691395655c803eec89304e929d69a08a72cfe318"
+    },
+    "40": {
+      "cabecera": {
+        "ncols": 73.0,
+        "nrows": 137.0,
+        "xllcorner": 674613.0,
+        "yllcorner": 4604717.0,
+        "cellsize": 40.0,
+        "nodata_value": -9999.0
+      },
+      "celdas_validas": 5346,
+      "sha256": "7e82ce8fbc71b3006d99a7823e84a875f470b58ff4c40ba9d1c091e4a3f34eb3"
+    }
+  },
+  "archivos_procesados": 1620,
+  "archivos_copiados": 0
+}
