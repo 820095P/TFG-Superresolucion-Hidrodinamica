@@ -12,7 +12,12 @@ import os
 import time
 import pickle
 
-from data_preparation import load_coarse_simulation_data, load_fine_simulation_data, load_fine_topographic_features, load_z_fine_data
+from data_preparation import (
+    coerce_normalization_parameters,
+    load_coarse_simulation_data,
+    load_fine_simulation_data,
+    load_fine_topographic_features,
+)
 
 # --- Custom Layers ---
 class ResizeWithBicubic(nn.Module):
@@ -1238,7 +1243,6 @@ def seed_worker(worker_id):
 def train_model(
     model, optimizer, criterion, 
     X_train, y_train, X_val, y_val, 
-    z_fine_train, z_fine_val,
     total_pixels_to_crop_on_each_dim,
     error_threshold=0.001,
     clip_value_min=None, clip_value_max=None,
@@ -1257,11 +1261,9 @@ def train_model(
     X_train_coarse_tensor = X_train[0].cpu()
     X_train_topo_tensor = X_train[1].cpu()
     y_train_tensor = y_train.cpu()
-    z_fine_train_tensor = z_fine_train.cpu()
     X_val_coarse_tensor = X_val[0].cpu()
     X_val_topo_tensor = X_val[1].cpu()
     y_val_tensor = y_val.cpu()
-    z_fine_val_tensor = z_fine_val.cpu()
 
     if y_min is not None and y_max is not None:
         y_min = y_min.to(y_train_tensor.device)
@@ -1276,12 +1278,12 @@ def train_model(
     g.manual_seed(SEED)
 
     # Crear Datasets y DataLoaders
-    train_dataset = torch.utils.data.TensorDataset(X_train_coarse_tensor, X_train_topo_tensor, y_train_tensor, z_fine_train_tensor)
+    train_dataset = torch.utils.data.TensorDataset(X_train_coarse_tensor, X_train_topo_tensor, y_train_tensor)
     # train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=True) #! no lo usamos porque dividimos datos en el main
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, 
         num_workers=2, pin_memory=True, worker_init_fn=seed_worker, generator=g, persistent_workers=True, prefetch_factor=2)
 
-    val_dataset = torch.utils.data.TensorDataset(X_val_coarse_tensor, X_val_topo_tensor, y_val_tensor, z_fine_val_tensor)
+    val_dataset = torch.utils.data.TensorDataset(X_val_coarse_tensor, X_val_topo_tensor, y_val_tensor)
     # val_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank, shuffle=False) #! no lo usamos porque dividimos datos en el main
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, 
         num_workers=2, pin_memory=True, worker_init_fn=seed_worker, generator=g, persistent_workers=True, prefetch_factor=2)
@@ -1319,25 +1321,20 @@ def train_model(
         # running_mse = 0.0
         # running_mae = 0.0
 
-        for batch_idx, (coarse_batch, topo_batch, fine_batch, z_fine_batch) in enumerate(train_loader):
+        for batch_idx, (coarse_batch, topo_batch, fine_batch) in enumerate(train_loader):
             coarse_batch = coarse_batch.to(device, non_blocking=True)
             topo_batch = topo_batch.to(device, non_blocking=True)
             fine_batch = fine_batch.to(device, non_blocking=True)
-            z_fine_batch = z_fine_batch.to(device, non_blocking=True)
     
             optimizer.zero_grad()
             outputs = model(coarse_batch, topo_batch)
 
-            # Crop central de fine_batch y z_fine_batch para que coincida con dimensiones de outputs (de normal ya coinciden, es en caso de que haya una división //2 no entera)
+            # Crop the target to match output dimensions when the size difference is odd.
             H_pred, W_pred = outputs.shape[1:3]
             H_true_y, W_true_y = fine_batch.shape[1:3]
-            H_true_z, W_true_z = z_fine_batch.shape[1:3]
             crop_h_y = (H_true_y - H_pred) // 2
             crop_w_y = (W_true_y - W_pred) // 2
-            crop_h_z = (H_true_z - H_pred) // 2
-            crop_w_z = (W_true_z - W_pred) // 2
             fine_batch = fine_batch[:, crop_h_y:H_true_y - crop_h_y, crop_w_y:W_true_y - crop_w_y, :]
-            z_fine_batch = z_fine_batch[:, crop_h_z:H_true_z - crop_h_z, crop_w_z:W_true_z - crop_w_z, :]
 
             # Normalized metrics (for training it is enough, we do not care about denormalized ones until validation)
             loss = criterion(outputs, fine_batch)
@@ -1364,24 +1361,19 @@ def train_model(
         val_running_denorm_mae = 0.0
 
         with torch.no_grad():
-            for batch_idx, (coarse_batch_val, topo_batch_val, fine_batch_val, z_fine_batch_val) in enumerate(val_loader):
+            for batch_idx, (coarse_batch_val, topo_batch_val, fine_batch_val) in enumerate(val_loader):
                 coarse_batch_val = coarse_batch_val.to(device, non_blocking=True)
                 topo_batch_val = topo_batch_val.to(device, non_blocking=True)
                 fine_batch_val = fine_batch_val.to(device, non_blocking=True)
-                z_fine_batch_val = z_fine_batch_val.to(device, non_blocking=True)
 
                 val_outputs = model(coarse_batch_val, topo_batch_val)
 
-                # Crop central de fine_batch_val y z_fine_batch_val para que coincida con dimensiones de val_outputs (de normal ya coinciden, es en caso de que haya una división //2 no entera)
+                # Crop the target to match output dimensions when the size difference is odd.
                 H_pred, W_pred = val_outputs.shape[1:3]
                 H_true_y, W_true_y = fine_batch_val.shape[1:3]
-                H_true_z, W_true_z = z_fine_batch_val.shape[1:3]
                 crop_h_y = (H_true_y - H_pred) // 2
                 crop_w_y = (W_true_y - W_pred) // 2
-                crop_h_z = (H_true_z - H_pred) // 2
-                crop_w_z = (W_true_z - W_pred) // 2
                 fine_batch_val = fine_batch_val[:, crop_h_y:H_true_y - crop_h_y, crop_w_y:W_true_y - crop_w_y, :]
-                z_fine_batch_val = z_fine_batch_val[:, crop_h_z:H_true_z - crop_h_z, crop_w_z:W_true_z - crop_w_z, :]
 
                 val_loss = criterion(val_outputs, fine_batch_val)
 
@@ -1567,7 +1559,7 @@ def plot_training_history(history, save_path='results/training_history'):
     best_val_loss = min(history['val_loss_sync'])
     print(f"\nBest epoch: {best_epoch} (val_loss_sync: {best_val_loss:.9f})")
 
-def evaluate_model(model, criterion, X_test, y_test, z_fine_test, # z_fine_test no se usa
+def evaluate_model(model, criterion, X_test, y_test,
                            log1p_exp1m_transform=False,
                            normalization_parameters=None,
                            error_threshold=0.001,
@@ -1586,6 +1578,7 @@ def evaluate_model(model, criterion, X_test, y_test, z_fine_test, # z_fine_test 
     """
     Evalúa el modelo y benchmarks. Devuelve SUMAS y CONTADORES para un all_reduce correcto.
     """
+    normalization_parameters = coerce_normalization_parameters(normalization_parameters)
     model.eval()
     rank = dist.get_rank() if dist.is_initialized() else 0
     if evaluation_mask is not None:
@@ -1689,7 +1682,7 @@ def evaluate_model(model, criterion, X_test, y_test, z_fine_test, # z_fine_test 
             topo_batch_processed = topo_batch_orig.clone()
 
             if normalization_parameters is not None:
-                Xc_min, Xc_max, Xt_min, Xt_max, y_min, y_max, z_min, z_max = normalization_parameters
+                Xc_min, Xc_max, Xt_min, Xt_max, y_min, y_max = normalization_parameters
                 Xc_min, Xc_max = Xc_min.to(coarse_batch_processed.device), Xc_max.to(coarse_batch_processed.device)
                 Xt_min, Xt_max = Xt_min.to(topo_batch_processed.device), Xt_max.to(topo_batch_processed.device)
                 y_min, y_max = y_min.to(fine_batch.device), y_max.to(fine_batch.device)
@@ -1846,7 +1839,7 @@ def evaluate_model(model, criterion, X_test, y_test, z_fine_test, # z_fine_test 
                     
                     global_sample_index += 1
 
-            wet_domain = domain_mask & (h_true > error_threshold)
+            wet_domain = domain_mask & (h_true >= error_threshold)
             mask = wet_domain
             if mask.sum() > 0:
                 masked_pixel_count = mask.sum().item()
@@ -1946,9 +1939,9 @@ def compute_metrics(vec, *, has_loss: bool, n_batches: float, threshold: float):
     sse: sum of squared errors (for MSE)
     sae: sum of absolute errors (for MAE)
     n_total: total number of pixels (for average MSE and MAE)
-    sse_m: sum of squared errors for masked pixels (where true value > threshold)
+    sse_m: sum of squared errors for masked pixels (where true value >= threshold)
     sae_m: sum of absolute errors for masked pixels
-    n_m: number of masked pixels (where true value > threshold)
+    n_m: number of masked pixels (where true value >= threshold)
     vrel_sum: sum of relative volume errors (|vol_true - vol_pred| / vol_true) for samples where vol_true > 0
     vrel_n: count of samples where vol_true > 0 (for average volume relative error)
     TP: true positives (for HIT, FAR, CSI)

@@ -7,11 +7,5 @@ venv/
 Thumbs.db
 Desktop.ini
 
-# Profundidades originales: se publican las postprocesadas
-/UNet/UNet_data_txt/h_coarse20/
-/UNet/UNet_data_txt/h_coarse40/
-/UNet/UNet_data_txt/h_fine10/
-/UNet/UNet_data_txt/h_coarse20_real_case/
-/UNet/UNet_data_txt/h_coarse40_real_case/
-/UNet/UNet_data_txt/h_fine10_real_case/
 /TRITON/TRITON_outputs/
+/TRITON/TRITON_outputs_visualized/

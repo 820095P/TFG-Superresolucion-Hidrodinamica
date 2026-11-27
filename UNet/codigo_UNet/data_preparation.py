@@ -1009,51 +1009,121 @@ def get_files_sorted(folder):
     files.sort(key=natural_key)
     return files
 
-#! prueba de pasar solo rutas a los datos, no cargar todo en memoria
-def load_and_split_all_data_paths(coarse_folder, fine_folder, topo_folders, z_folder,
-                                  train_ratio=0.7, val_ratio=0.1, test_ratio=0.2,
-                                  random_state=42):
-    assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-6, "Split ratios must sum 1"
-    
-    coarse_paths = get_files_sorted(coarse_folder)
-    fine_paths   = get_files_sorted(fine_folder)
-    if z_folder is not None:
-        z_paths      = get_files_sorted(z_folder)
-    else:
-        z_paths = []
+def _index_synthetic_paths(folder, label):
+    paths_by_key = {}
+    filename_pattern = re.compile(r"^Sint(\d+)_H_(\d+)_(\d+)\.txt$")
 
-    n = len(coarse_paths)
-    indices = np.arange(n)
-    train_idx, temp_idx = train_test_split(indices, train_size=train_ratio, random_state=random_state)
-    val_size_adjusted = val_ratio / (val_ratio + test_ratio)
-    val_idx, test_idx = train_test_split(temp_idx, train_size=val_size_adjusted, random_state=random_state)
+    for path in get_files_sorted(folder):
+        basename = os.path.basename(path)
+        match = filename_pattern.fullmatch(basename)
+        if match is None:
+            raise ValueError(f"Unexpected synthetic filename in {label}: {path}")
 
-    splits = {
-        'train': train_idx,
-        'val':   val_idx,
-        'test':  test_idx
+        scenario, output, timestep = map(int, match.groups())
+        if scenario not in {1, 2, 3, 4, 5}:
+            raise ValueError(
+                f"Unexpected scenario Sint{scenario} in {label}: {path}"
+            )
+
+        key = (scenario, output, timestep)
+        if key in paths_by_key:
+            raise ValueError(
+                f"Duplicate synthetic key Sint{scenario}_H_{output}_{timestep} "
+                f"in {label}: {paths_by_key[key]} and {path}"
+            )
+        paths_by_key[key] = path
+
+    return paths_by_key
+
+
+#! Pass only data paths, not loaded data, to avoid overloading GPUs.
+def load_and_split_all_data_paths(coarse_folder, fine_folder, topo_folders):
+    coarse_by_key = _index_synthetic_paths(coarse_folder, "LR")
+    fine_by_key = _index_synthetic_paths(fine_folder, "HR")
+
+    missing_fine_keys = sorted(coarse_by_key.keys() - fine_by_key.keys())
+    if missing_fine_keys:
+        scenario, output, timestep = missing_fine_keys[0]
+        raise ValueError(
+            f"No HR file for key Sint{scenario}_H_{output}_{timestep}; "
+            f"LR file: {coarse_by_key[missing_fine_keys[0]]}"
+        )
+
+    missing_coarse_keys = sorted(fine_by_key.keys() - coarse_by_key.keys())
+    if missing_coarse_keys:
+        scenario, output, timestep = missing_coarse_keys[0]
+        raise ValueError(
+            f"No LR file for key Sint{scenario}_H_{output}_{timestep}; "
+            f"HR file: {fine_by_key[missing_coarse_keys[0]]}"
+        )
+
+    expected_scenarios = {1, 2, 3, 4, 5}
+    for label, folder, paths_by_key in (
+        ("LR", coarse_folder, coarse_by_key),
+        ("HR", fine_folder, fine_by_key),
+    ):
+        present_scenarios = {key[0] for key in paths_by_key}
+        missing_scenarios = sorted(expected_scenarios - present_scenarios)
+        if missing_scenarios:
+            raise ValueError(
+                f"Missing scenarios in {label} directory {folder}: "
+                f"{', '.join(f'Sint{scenario}' for scenario in missing_scenarios)}"
+            )
+
+    ordered_keys = sorted(coarse_by_key)
+    paired_paths = [
+        (coarse_by_key[key], fine_by_key[key])
+        for key in ordered_keys
+    ]
+    coarse_paths = [coarse_path for coarse_path, _ in paired_paths]
+    fine_paths = [fine_path for _, fine_path in paired_paths]
+
+    scenario_splits = {
+        "train": {1, 2, 5},
+        "val": {4},
+        "test": {3},
     }
+    splits = {
+        split_name: np.asarray(
+            [index for index, key in enumerate(ordered_keys) if key[0] in scenarios],
+            dtype=np.int64,
+        )
+        for split_name, scenarios in scenario_splits.items()
+    }
+
+    print("Validated LR/HR pairs by split and scenario:")
+    for split_name, scenarios in scenario_splits.items():
+        split_keys = {ordered_keys[index] for index in splits[split_name]}
+        for scenario in sorted(scenarios):
+            scenario_keys = [
+                key for key in ordered_keys if key[0] == scenario and key in split_keys
+            ]
+            print(f"  {split_name} / Sint{scenario}: {len(scenario_keys)} pairs")
+            for key in scenario_keys:
+                print(
+                    f"    {os.path.basename(coarse_by_key[key])} -> "
+                    f"{os.path.basename(fine_by_key[key])}"
+                )
 
     paths = {
         'coarse_paths': coarse_paths,
         'fine_paths': fine_paths,
         'topo_folders': topo_folders,
-        'z_paths': z_paths
     }
 
     return splits, paths
 
 def load_split(split_indices, paths, world_size, rank, patch_based_mapping):
     local_idx = np.array_split(split_indices, world_size)[rank]
-    coarse, topo, y, z_fine = load_local_data(paths, local_idx, patch_based_mapping=patch_based_mapping)
-    return (coarse, topo), y, z_fine
+    coarse, topo, y = load_local_data(paths, local_idx, patch_based_mapping=patch_based_mapping)
+    return (coarse, topo), y
 
 def load_local_data(paths, indices, dtype=torch.float32, device="cpu", patch_based_mapping=False):
     """
     Función unificada para cargar datos dinámicos y estáticos locales a cada rank.
     
     Args:
-        paths (dict): Diccionario con rutas ('coarse_paths', 'fine_paths', 'topo_folders', 'z_paths').
+        paths (dict): Diccionario con rutas ('coarse_paths', 'fine_paths', 'topo_folders').
         indices (list): Lista de índices a cargar.
         dtype (torch.dtype): Tipo de dato.
         device (str): Dispositivo ('cpu' o 'cuda').
@@ -1099,44 +1169,6 @@ def load_local_data(paths, indices, dtype=torch.float32, device="cpu", patch_bas
     
     # CARGA DE DATOS ESTÁTICOS (Lógica Bifurcada)
     
-    # Z Fine
-    z_tensor = torch.zeros((N_local, H, W, 1), dtype=dtype, device=device)
-
-    if 'z_paths' in paths and paths['z_paths']:
-        z_paths_sorted = sorted(paths['z_paths'], key=natural_key)
-        
-        if patch_based_mapping:
-            # MODO PATCH-BASED (Mapeo por ID)
-            n_z_chunks = len(z_paths_sorted)
-            # Cargar todos los mapas maestros
-            z_data_list = [np.loadtxt(zp) for zp in z_paths_sorted]
-            all_z_chunks = np.stack(z_data_list, axis=0)[..., np.newaxis] 
-            
-            final_z_list = []
-            for c_path in local_coarse_paths:
-                chunk_id = get_chunk_id_from_name(c_path)
-                chunk_idx = chunk_id - 1
-                if chunk_idx < 0 or chunk_idx >= n_z_chunks:
-                     # Corrección simple por si acaso el ID es 0-based o fuera de rango
-                     chunk_idx = max(0, min(chunk_idx, n_z_chunks - 1))
-                final_z_list.append(all_z_chunks[chunk_idx])
-            
-            final_z_np = np.stack(final_z_list, axis=0)
-            z_tensor = torch.tensor(final_z_np, dtype=dtype, device=device)
-            
-        else:
-            # MODO FULL-RANGE/PARTITIONED (Repetición simple)
-            # Carga todos los Z disponibles y los apila en profundidad o repite
-            z_np_list = [np.loadtxt(zp) for zp in z_paths_sorted]
-            if len(z_np_list) > 1:
-                z_np = np.stack(z_np_list, axis=-1) # (H, W, n_z) - Raro, normalmente Z es 1 capa
-            else:
-                z_np = z_np_list[0][..., np.newaxis] # (H, W, 1)
-            
-            # Repetir para coincidir con el batch dinámico actual (N_local)
-            z_tensor = torch.tensor(np.stack([z_np]*N_local, axis=0), dtype=dtype, device=device)
-
-
     # Topo (DEM, Slope, Catchment)
     # Asumimos 3 canales por defecto, se ajustará si se cargan datos
     topo_tensor = torch.zeros((N_local, H, W, 3), dtype=dtype, device=device)
@@ -1194,7 +1226,7 @@ def load_local_data(paths, indices, dtype=torch.float32, device="cpu", patch_bas
             # Repetimos para coincidir con N_local
             topo_tensor = torch.tensor(np.stack([topo_np]*N_local, axis=0), dtype=dtype, device=device)
 
-    return coarse, topo_tensor, fine, z_tensor
+    return coarse, topo_tensor, fine
 
 
 def load_and_split_all_data(coarse_filepath, fine_filepath, topo_filepaths_list, z_fine_filepath, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_state=42):
@@ -1367,9 +1399,19 @@ def diagnose_all_data(X_train, y_train, X_val, y_val, X_test, y_test):
                 print(f"y range: {s['y_range']}, mean: {s['y_mean']:.6f}, var: {s['y_var']:.6f}")
         print("=" * 60)
 
-def normalize_all_datasets_minmax(X_train_coarse, X_train_topo, y_train_fine, z_fine_train,
-                                   X_val_coarse, X_val_topo, y_val_fine, z_fine_val,
-                                   X_test_coarse, X_test_topo, y_test_fine, z_fine_test,
+def coerce_normalization_parameters(parameters):
+    if parameters is None:
+        return None
+    if len(parameters) in (6, 8):
+        return tuple(parameters[:6])
+    raise ValueError(
+        f"Expected 6 normalization parameters (or 8 from a legacy file), got {len(parameters)}"
+    )
+
+
+def normalize_all_datasets_minmax(X_train_coarse, X_train_topo, y_train_fine,
+                                   X_val_coarse, X_val_topo, y_val_fine,
+                                   X_test_coarse, X_test_topo, y_test_fine,
                                    device,
                                    log1p_exp1m_transform=False,
                                    normalization_parameters=None):
@@ -1379,6 +1421,8 @@ def normalize_all_datasets_minmax(X_train_coarse, X_train_topo, y_train_fine, z_
     Note: Normalization parameters (min/max) are computed ONLY from the training set
           to avoid data leakage.
     """
+    normalization_parameters = coerce_normalization_parameters(normalization_parameters)
+
     if log1p_exp1m_transform: # Apply log1p to handle skewed distributions, which are h_fine and h_coarse
         X_train_coarse = torch.log1p(X_train_coarse)
         X_val_coarse   = torch.log1p(X_val_coarse)
@@ -1397,19 +1441,13 @@ def normalize_all_datasets_minmax(X_train_coarse, X_train_topo, y_train_fine, z_
             nodata_value=-9999
         )
         y_min,  y_max  = compute_global_minmax_distributed(y_train_fine, device=device)
-        z_min, z_max = compute_global_minmax_distributed(
-            z_fine_train,
-            device=device,
-            nodata_value=-9999
-        )
     else:
-        Xc_min, Xc_max, Xt_min, Xt_max, y_min, y_max, z_min, z_max = normalization_parameters
+        Xc_min, Xc_max, Xt_min, Xt_max, y_min, y_max = normalization_parameters
 
     # Place each pair on the device of the tensor it will normalize.
     Xc_min, Xc_max = Xc_min.to(X_train_coarse.device), Xc_max.to(X_train_coarse.device)
     Xt_min, Xt_max = Xt_min.to(X_train_topo.device), Xt_max.to(X_train_topo.device)
     y_min, y_max = y_min.to(y_train_fine.device), y_max.to(y_train_fine.device)
-    z_min, z_max = z_min.to(z_fine_train.device), z_max.to(z_fine_train.device)
 
     # Coarse
     X_train_coarse = (X_train_coarse - Xc_min) / (Xc_max - Xc_min + 1e-8)
@@ -1434,33 +1472,19 @@ def normalize_all_datasets_minmax(X_train_coarse, X_train_topo, y_train_fine, z_
     y_val_fine   = (y_val_fine - y_min.to(y_val_fine.device)) / (y_max.to(y_val_fine.device) - y_min.to(y_val_fine.device) + 1e-8)
     y_test_fine  = (y_test_fine - y_min.to(y_test_fine.device)) / (y_max.to(y_test_fine.device) - y_min.to(y_test_fine.device) + 1e-8)
 
-    # z_fine
-    z_fine_train_mask = z_fine_train == -9999
-    z_fine_train = (z_fine_train - z_min) / (z_max - z_min + 1e-8)
-    z_fine_train = torch.where(z_fine_train_mask, torch.zeros_like(z_fine_train), z_fine_train)
-
-    z_fine_val_mask = z_fine_val == -9999
-    z_fine_val = (z_fine_val - z_min.to(z_fine_val.device)) / (z_max.to(z_fine_val.device) - z_min.to(z_fine_val.device) + 1e-8)
-    z_fine_val = torch.where(z_fine_val_mask, torch.zeros_like(z_fine_val), z_fine_val)
-
-    z_fine_test_mask = z_fine_test == -9999
-    z_fine_test = (z_fine_test - z_min.to(z_fine_test.device)) / (z_max.to(z_fine_test.device) - z_min.to(z_fine_test.device) + 1e-8)
-    z_fine_test = torch.where(z_fine_test_mask, torch.zeros_like(z_fine_test), z_fine_test)
-
     if dist.get_rank() == 0:  # Solo rank 0 imprime
         print("Normalization parameters:")
         print(f"Xc_min: {Xc_min.item():.6f}, Xc_max: {Xc_max.item():.6f}")
         print("Xt_min por canal:", Xt_min.flatten().tolist())
         print("Xt_max por canal:", Xt_max.flatten().tolist())
         print(f"y_min:  {y_min.item():.6f}, y_max:  {y_max.item():.6f}")
-        print(f"z_min:  {z_min.item():.6f}, z_max:  {z_max.item():.6f}")
 
     return (
-        X_train_coarse, X_train_topo, y_train_fine, z_fine_train,
-        X_val_coarse, X_val_topo, y_val_fine, z_fine_val,
-        X_test_coarse, X_test_topo, y_test_fine, z_fine_test,
+        X_train_coarse, X_train_topo, y_train_fine,
+        X_val_coarse, X_val_topo, y_val_fine,
+        X_test_coarse, X_test_topo, y_test_fine,
         # Return min/max values for inverse transformation later if needed for denormalization
-        (Xc_min, Xc_max, Xt_min, Xt_max, y_min, y_max, z_min, z_max)
+        (Xc_min, Xc_max, Xt_min, Xt_max, y_min, y_max)
     )
 
 def compute_global_minmax_distributed(tensor, dim=None, device=None, nodata_value=None):
@@ -1516,7 +1540,6 @@ def compute_global_minmax_distributed(tensor, dim=None, device=None, nodata_valu
 
 def prepare_real_case_inputs(
     H_COARSE_REAL_CASE_DATA_PATH,
-    Z_FINE_PATH,
     TOPO_DATA_PATHS,
     norm_params,
     device,
@@ -1525,9 +1548,10 @@ def prepare_real_case_inputs(
 ):
     """
     Carga, normaliza, transforma y prepara los datos de un caso real para evaluación.
-    Devuelve (X_real_case, y_real_case, z_fine_real_case)
+    Devuelve (X_real_case, y_real_case)
     donde X_real_case = (Xc_real_case, Xt_real_case).
     """
+    norm_params = coerce_normalization_parameters(norm_params)
 
     # --- Load h_coarse ---
     Xc_min, Xc_max = norm_params[0], norm_params[1]
@@ -1549,19 +1573,6 @@ def prepare_real_case_inputs(
         y_real_case = (y_real_case - y_min) / (y_max - y_min + 1e-8)
         y_real_case = y_real_case.to(device)
 
-    # --- Load z_fine ---
-    z_min, z_max = norm_params[6], norm_params[7]
-    z_fine_real_case = load_z_fine_data(Z_FINE_PATH)
-    z_min, z_max = z_min.to(z_fine_real_case.device), z_max.to(z_fine_real_case.device)
-    z_fine_real_case_mask = z_fine_real_case == -9999
-    z_fine_real_case = (z_fine_real_case - z_min) / (z_max - z_min + 1e-8)
-    z_fine_real_case = torch.where(
-        z_fine_real_case_mask,
-        torch.zeros_like(z_fine_real_case),
-        z_fine_real_case
-    )
-    z_fine_real_case = z_fine_real_case.to(device)
-
     # --- Load topo ---
     Xt_min, Xt_max = norm_params[2], norm_params[3]
     Xt_real_case = load_fine_topographic_features(TOPO_DATA_PATHS)
@@ -1578,19 +1589,17 @@ def prepare_real_case_inputs(
     print(
         "Real case normalized ranges: "
         f"DEM=[{Xt_real_case[..., 0].min().item():.6f}, {Xt_real_case[..., 0].max().item():.6f}], "
-        f"MANN=[{Xt_real_case[..., 1].min().item():.6f}, {Xt_real_case[..., 1].max().item():.6f}], "
-        f"z_fine=[{z_fine_real_case.min().item():.6f}, {z_fine_real_case.max().item():.6f}]"
+        f"MANN=[{Xt_real_case[..., 1].min().item():.6f}, {Xt_real_case[..., 1].max().item():.6f}]"
     )
 
-    # --- Expand topo & z_fine to match coarse length ---
+    # --- Expand topo to match coarse length ---
     num_groups = Xc_real_case.shape[0] // Xt_real_case.shape[0]
     Xt_real_case = Xt_real_case.repeat(num_groups, 1, 1, 1)
-    z_fine_real_case = z_fine_real_case.repeat(num_groups, 1, 1, 1)
 
     # --- Package inputs X---
     X_real_case = (Xc_real_case, Xt_real_case)
 
-    return X_real_case, y_real_case, z_fine_real_case
+    return X_real_case, y_real_case
 
 def plot_pixel_value_distribution(y_tensor, save_path, bins=100, log_scale=True, title="Distribución de profundidades", x_range=None):
     """

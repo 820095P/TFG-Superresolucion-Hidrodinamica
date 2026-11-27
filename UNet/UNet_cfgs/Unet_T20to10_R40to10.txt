@@ -15,7 +15,6 @@ ALPHA_CSI=0.001
 
 # DATA PATHS
 TOPO_DATA_PATHS=['/working_disk/pbenito/data/Unet_T20to10_R40to10/dem_fine10', '/working_disk/pbenito/data/Unet_T20to10_R40to10/mann_fine10']
-Z_FINE_PATH='/working_disk/pbenito/data/Unet_T20to10_R40to10/z_fine10'
 H_COARSE_DATA_PATH='/working_disk/pbenito/data/Unet_T20to10_R40to10/synthetic/h_coarse20'
 H_FINE_DATA_PATH='/working_disk/pbenito/data/Unet_T20to10_R40to10/synthetic/h_fine10'
 

@@ -10,6 +10,7 @@ import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 from scipy.stats import pearsonr
+from data_preparation import coerce_normalization_parameters
 from unet_model import ResizeWithBicubic, ResizeWithClassicalSubGrid
 import pickle
 from itertools import zip_longest
@@ -224,7 +225,7 @@ def load_and_stitch_and_plot_tensors_from_files(folders_to_search_list, file_pat
     plt.close()
     print(f"✅ Guardado correctamente en: {save_path}")
     
-def visualize_predictions(model, X_test, y_test, z_fine_test,
+def visualize_predictions(model, X_test, y_test,
                                   save_path, total_pixels_to_crop_on_each_dim, cell_size_ratio,
                                   log1p_exp1m_transform=False,
                                   normalization_parameters=None,
@@ -298,7 +299,6 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
     Xc_sub = X_coarse[expanded_indices].to(device)
     Xt_sub = X_topo[expanded_indices].to(device)
     y_sub = y_test[expanded_indices].to(device)
-    z_fine_sub = z_fine_test[expanded_indices].to(device)
 
     # --------------------------------------------------------------
     # 3. PREDICCIÓN Y CROPEO (Sobre parches individuales)
@@ -308,33 +308,28 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
 
     # Denormalize
     if normalization_parameters is not None:
-        Xc_min, Xc_max, Xt_min, Xt_max, y_min, y_max, z_min, z_max = normalization_parameters
+        normalization_parameters = coerce_normalization_parameters(normalization_parameters)
+        Xc_min, Xc_max, Xt_min, Xt_max, y_min, y_max = normalization_parameters
         Xc_min, Xc_max = Xc_min.to(Xc_sub.device), Xc_max.to(Xc_sub.device)
         Xt_min, Xt_max = Xt_min.to(Xt_sub.device), Xt_max.to(Xt_sub.device)
         y_min, y_max = y_min.to(pred.device), y_max.to(pred.device)
-        z_min, z_max = z_min.to(z_fine_sub.device), z_max.to(z_fine_sub.device)
 
         Xc_sub = Xc_sub * (Xc_max - Xc_min + 1e-8) + Xc_min
         Xt_sub = Xt_sub * (Xt_max - Xt_min + 1e-8) + Xt_min
         pred = pred * (y_max - y_min + 1e-8) + y_min
         y_sub = y_sub * (y_max - y_min + 1e-8) + y_min
-        z_fine_sub = z_fine_sub * (z_max - z_min + 1e-8) + z_min
 
     if log1p_exp1m_transform: # inverse transform
         pred = torch.expm1(pred)
         y_sub = torch.expm1(y_sub)
         Xc_sub = torch.expm1(Xc_sub)
 
-    # Crop central del target y_sub y z_fine_sub para que coincida con dimensiones de pred (de normal ya coinciden, es en caso de que haya una división //2 no entera)
+    # Crop the target to match output dimensions when the size difference is odd.
     H_pred, W_pred = pred.shape[1:3]
-    H_true_y, W_true_y = y_sub.shape[1:3]
-    H_true_z, W_true_z = z_fine_sub.shape[1:3]
-    crop_h_y = (H_true_y - H_pred) // 2
-    crop_w_y = (W_true_y - W_pred) // 2
-    crop_h_z = (H_true_z - H_pred) // 2
-    crop_w_z = (W_true_z - W_pred) // 2
-    y_sub_cropped = y_sub[:, crop_h_y:crop_h_y + H_pred, crop_w_y:crop_w_y + W_pred, :]
-    z_fine_sub_cropped = z_fine_sub[:, crop_h_z:crop_h_z + H_pred, crop_w_z:crop_w_z + W_pred, :]
+    H_true, W_true = y_sub.shape[1:3]
+    crop_h = (H_true - H_pred) // 2
+    crop_w = (W_true - W_pred) // 2
+    y_sub_cropped = y_sub[:, crop_h:crop_h + H_pred, crop_w:crop_w + W_pred, :]
 
     # Crop central de la entrada Xc_sub y Xt_sub para que coincida con dimensiones de pred
     crop_coarse = (total_pixels_to_crop_on_each_dim // cell_size_ratio) // 2
@@ -368,7 +363,7 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
             group_size_rows=grouping_parameter_for_subgrid_rows, 
             group_size_cols=grouping_parameter_for_subgrid_cols
         )
-    classical_subgrid = classical_subgrid[:, crop_h_y:crop_h_y + H_pred, crop_w_y:crop_w_y + W_pred, :]
+    classical_subgrid = classical_subgrid[:, crop_h:crop_h + H_pred, crop_w:crop_w + W_pred, :]
 
     # --------------------------------------------------------------
     # 4. UNIÓN (STITCHING) - Solo si es Patch-Based
@@ -379,7 +374,6 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
         # Estamos uniendo parches YA RECORTADOS Y PROCESADOS
         pred    = stitch_tensor(pred, n_samples, NUMBER_OF_SUBDOMAINS, NUMBER_OF_COLUMNS_IN_SUBDOMAINS)
         y_sub_cropped       = stitch_tensor(y_sub_cropped, n_samples, NUMBER_OF_SUBDOMAINS, NUMBER_OF_COLUMNS_IN_SUBDOMAINS)
-        z_fine_sub_cropped  = stitch_tensor(z_fine_sub_cropped, n_samples, NUMBER_OF_SUBDOMAINS, NUMBER_OF_COLUMNS_IN_SUBDOMAINS)
         
         bicubic = stitch_tensor(bicubic, n_samples, NUMBER_OF_SUBDOMAINS, NUMBER_OF_COLUMNS_IN_SUBDOMAINS)
         classical_subgrid = stitch_tensor(classical_subgrid, n_samples, NUMBER_OF_SUBDOMAINS, NUMBER_OF_COLUMNS_IN_SUBDOMAINS)
@@ -426,7 +420,6 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
     coarse_cropped_np = Xc_sub_cropped.cpu().numpy()
     topo_cropped_np = Xt_sub_cropped.cpu().numpy()
     y_np = y_sub_cropped.cpu().numpy()
-    z_fine_np = z_fine_sub_cropped.cpu().numpy()
 
     if evaluation_mask is not None:
         if evaluation_mask.ndim != 2:
@@ -446,8 +439,8 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
             )
         plot_domain = np.asarray(
             evaluation_mask[
-                crop_h_y:crop_h_y + H_pred,
-                crop_w_y:crop_w_y + W_pred,
+                crop_h:crop_h + H_pred,
+                crop_w:crop_w + W_pred,
             ],
             dtype=bool,
         )
@@ -480,11 +473,6 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
                 ),
             )
 
-    # En caso de predecir wse en vez de h, descomentar. Así calculamos el error en h como h=wse-z_fine
-    # pred_np = np.maximum(0.0, pred_np - z_fine_np)
-    # bicubic_np = np.maximum(0.0, bicubic_np - z_fine_np)
-    # y_np = np.maximum(0.0, y_np - z_fine_np)
-    
     # Error relativo medio sobre todos los píxeles (dry & wet)
     if plot_domain is not None:
         relative_domain = np.broadcast_to(
@@ -563,8 +551,6 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
         pred_np_im = pred_np[i, :, :, 0]
         pred_np_masked = np.where(np.abs(pred_np_im) > error_threshold, pred_np_im, np.nan)
         pred_np_masked = fine_visible(pred_np_masked)
-        z_fine_img = z_fine_np[i, :, :, 0] # Se define por si lo usas en las líneas comentadas
-
         # --- 2. Calcular límites comunes para esas 4 imágenes ---
         images_to_scale = [gt_masked, bicubic_masked, classical_subgrid_masked, pred_np_masked]
         
@@ -589,7 +575,6 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
         axes[i, 1].set_title("Topographic Input Cropped")
         
         # Col 2: Ground Truth (!! USA LÍMITES COMUNES !!)
-        # gt_masked = np.where(np.abs(gt_img) > error_threshold, gt_img+z_fine_img, np.nan) #! para pintar hZ
         axes[i, 2].imshow(gt_masked, cmap=cmap, vmin=vmin, vmax=vmax)
         axes[i, 2].set_title("Ground Truth")
 
@@ -602,7 +587,6 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
         axes[i, 4].set_title("Classical Subgrid Resize")
 
         # Col 5: UNet Prediction (!! USA LÍMITES COMUNES !!)
-        # pred_np_masked = np.where(np.abs(pred_np_im) > error_threshold, pred_np_im+z_fine_img, np.nan) #! para pintar hZ
         axes[i, 5].imshow(pred_np_masked, cmap=cmap, vmin=vmin, vmax=vmax)
         axes[i, 5].set_title("UNet Prediction")
 
@@ -713,22 +697,6 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
         txt_output_path = os.path.splitext(save_path)[0] + f"_GT_{i+1}.txt"
         np.savetxt(txt_output_path, GT_img_masked, fmt="%.6f")
         print(f"Saved individual GT array to: {txt_output_path}")
-        #! para la hZ
-        # fig, ax = plt.subplots(figsize=(4, 4))
-        # im = ax.imshow(GT_img+z_fine_img, cmap='winter')
-        # ax.set_title(f"GT h+z — S. {indices[i]}")
-        # ax.axis('off')
-        # cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        # cbar.ax.set_ylabel("GT h+z", rotation=270, labelpad=15)
-        # output_path = os.path.splitext(save_path)[0] + f"_GT_hZ_{i+1}.png"
-        # plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
-        # plt.close()
-        # print(f"Saved individual GT hZ map to: {output_path}")
-        # txt_output_path = os.path.splitext(save_path)[0] + f"_GT_hZ_{i+1}.txt"
-        # np.savetxt(txt_output_path, GT_img+z_fine_img, fmt="%.6f")
-        # print(f"Saved individual GT hZ array to: {txt_output_path}")
-
-
         fig, ax = plt.subplots(figsize=(4, 4))
         diff_binary_img = diff_binary[i, :, :, 0]
         diff_binary_img = np.where(plot_domain, diff_binary_img, np.nan) if plot_domain is not None else diff_binary_img
@@ -793,12 +761,6 @@ def visualize_predictions(model, X_test, y_test, z_fine_test,
         txt_output_path = os.path.splitext(save_path)[0] + f"_pred_{i+1}.txt"
         np.savetxt(txt_output_path, pred_np_masked, fmt="%.6f")
         print(f"Saved individual UNet prediction array to: {txt_output_path}")
-        # #! para la hZ
-        # txt_output_path = os.path.splitext(save_path)[0] + f"_pred_hZ_{i+1}.txt"
-        # np.savetxt(txt_output_path, pred_np_masked+z_fine_img, fmt="%.6f")
-        # print(f"Saved individual UNet prediction hZ array to: {txt_output_path}")
-        # #! para la hZ
-
     return pred_np
 
 # def load_true_and_pred_as_numpy(predictions_root):

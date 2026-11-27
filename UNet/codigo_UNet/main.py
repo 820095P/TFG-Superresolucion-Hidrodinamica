@@ -13,20 +13,25 @@ def main(global_rank, local_rank, world_size, args):
         # Each rank loads its own config to avoid broadcasting issues
         config = load_info_model(args.config)
         cfg = ModelConfig.from_dict(config)
+        effective_mask_path = cfg.EVALUATION_DOMAIN_DEM_PATH
+        if effective_mask_path is None:
+            topo_data_paths = cfg.TOPO_DATA_PATHS
+            if not topo_data_paths or not topo_data_paths[0]:
+                raise ValueError(
+                    "No se puede construir la máscara geográfica: "
+                    "EVALUATION_DOMAIN_DEM_PATH no está configurado y "
+                    "falta la primera ruta de TOPO_DATA_PATHS (MDT)."
+                )
+            effective_mask_path = topo_data_paths[0]
         evaluation_mask = load_evaluation_domain_mask(
             cfg.EVALUATION_DOMAIN_DEM_PATH,
-            cfg.Z_FINE_PATH,
+            effective_mask_path,
             cfg.EVALUATION_DOMAIN_NODATA,
         )
         if evaluation_mask is None:
             if global_rank == 0:
                 print("Dominio de evaluación: rectangular")
         elif global_rank == 0:
-            effective_mask_path = (
-                cfg.EVALUATION_DOMAIN_DEM_PATH
-                if cfg.EVALUATION_DOMAIN_DEM_PATH is not None
-                else cfg.Z_FINE_PATH
-            )
             print(
                 f"Dominio de evaluación: máscara geográfica | "
                 f"ruta DEM usada: {effective_mask_path}"
@@ -55,23 +60,26 @@ def main(global_rank, local_rank, world_size, args):
 
         # We only load the data paths, not the data itself (to avoid overloading the gpus). Only rank 0 does this and then broadcasts the splits to other ranks
         if global_rank == 0:
-            splits, paths = load_and_split_all_data_paths(
-                cfg.H_COARSE_DATA_PATH,
-                cfg.H_FINE_DATA_PATH,
-                cfg.TOPO_DATA_PATHS,
-                cfg.Z_FINE_PATH,
-                random_state=cfg.SEED
+            try:
+                splits, paths = load_and_split_all_data_paths(
+                    cfg.H_COARSE_DATA_PATH,
+                    cfg.H_FINE_DATA_PATH,
+                    cfg.TOPO_DATA_PATHS,
                 )
+                split_result = (splits, paths, None)
+            except Exception as exc:
+                split_result = (None, None, f"{type(exc).__name__}: {exc}")
         else:
-            splits, paths = None, None
+            split_result = None
 
-        splits = comm.bcast(splits, root=0)
-        paths = comm.bcast(paths, root=0)
+        splits, paths, split_error = comm.bcast(split_result, root=0)
+        if split_error is not None:
+            raise RuntimeError(f"Data split failed on rank 0: {split_error}")
 
         # Each rank loads its own part of the data
-        X_train, y_train, z_fine_train = load_split(splits['train'], paths, world_size, global_rank, cfg.PATCH_BASED_MAPPING)
-        X_val, y_val, z_fine_val = load_split(splits['val'], paths, world_size, global_rank, cfg.PATCH_BASED_MAPPING)
-        X_test, y_test, z_fine_test = load_split(splits['test'], paths, world_size, global_rank, cfg.PATCH_BASED_MAPPING)
+        X_train, y_train = load_split(splits['train'], paths, world_size, global_rank, cfg.PATCH_BASED_MAPPING)
+        X_val, y_val = load_split(splits['val'], paths, world_size, global_rank, cfg.PATCH_BASED_MAPPING)
+        X_test, y_test = load_split(splits['test'], paths, world_size, global_rank, cfg.PATCH_BASED_MAPPING)
 
         print_memory_usage("After creating per-rank datasets", global_rank, device)
 
@@ -88,13 +96,13 @@ def main(global_rank, local_rank, world_size, args):
                 cfg.NORM_PARAMS_SAVE_PATH,
                 map_location='cpu',
             )
-        (X_train_coarse_norm, X_train_topo_norm, y_train_norm, z_fine_train_norm,
-            X_val_coarse_norm, X_val_topo_norm, y_val_norm, z_fine_val_norm,
-            X_test_coarse_norm, X_test_topo_norm, y_test_norm, z_fine_test_norm,
+        (X_train_coarse_norm, X_train_topo_norm, y_train_norm,
+            X_val_coarse_norm, X_val_topo_norm, y_val_norm,
+            X_test_coarse_norm, X_test_topo_norm, y_test_norm,
             norm_params) = normalize_all_datasets_minmax(
-            X_train[0], X_train[1], y_train, z_fine_train,
-            X_val[0], X_val[1], y_val, z_fine_val,
-            X_test[0], X_test[1], y_test, z_fine_test,
+            X_train[0], X_train[1], y_train,
+            X_val[0], X_val[1], y_val,
+            X_test[0], X_test[1], y_test,
             log1p_exp1m_transform=cfg.LOG1P_EXP1M_TRANSFORM,
             device=device,
             normalization_parameters=saved_norm_params,
@@ -118,21 +126,18 @@ def main(global_rank, local_rank, world_size, args):
             X_train_topo_norm.to(device)
         )
         y_train_norm = y_train_norm.to(device)
-        z_fine_train_norm = z_fine_train_norm.to(device)
 
         X_val_normalized = (
             X_val_coarse_norm.to(device),
             X_val_topo_norm.to(device)
         )
         y_val_norm = y_val_norm.to(device)
-        z_fine_val_norm = z_fine_val_norm.to(device)
 
         X_test_normalized = (
             X_test_coarse_norm.to(device),
             X_test_topo_norm.to(device)
         )
         y_test_norm = y_test_norm.to(device)
-        z_fine_test_norm = z_fine_test_norm.to(device)
 
         torch.cuda.synchronize()
 
@@ -202,7 +207,6 @@ def main(global_rank, local_rank, world_size, args):
                 model, optimizer, criterion,
                 X_train_normalized, y_train_norm,
                 X_val_normalized, y_val_norm,
-                z_fine_train_norm, z_fine_val_norm,
                 total_pixels_to_crop_on_each_dim=cfg.TOTAL_PIXELS_TO_CROP_ON_EACH_DIM,
                 error_threshold=cfg.THRESHOLD,
                 clip_value_min=cfg.CLIP_VALUE_MIN,
@@ -231,7 +235,7 @@ def main(global_rank, local_rank, world_size, args):
         # Evaluate model
         model_metrics_tuple, subgrid_metrics_tuple, bicubic_metrics_tuple = evaluate_model(
             model, criterion,
-            X_test_normalized, y_test_norm, z_fine_test_norm,
+            X_test_normalized, y_test_norm,
             log1p_exp1m_transform=cfg.LOG1P_EXP1M_TRANSFORM,
             normalization_parameters=norm_params,
             error_threshold=cfg.THRESHOLD,
@@ -246,11 +250,7 @@ def main(global_rank, local_rank, world_size, args):
             PATCH_BASED_MAPPING=cfg.PATCH_BASED_MAPPING,
             NUMBER_OF_SUBDOMAINS=cfg.NUMBER_OF_SUBDOMAINS,
             evaluation_mask=evaluation_mask,
-            evaluation_mask_path=(
-                cfg.EVALUATION_DOMAIN_DEM_PATH
-                if cfg.EVALUATION_DOMAIN_DEM_PATH is not None
-                else cfg.Z_FINE_PATH
-            )
+            evaluation_mask_path=effective_mask_path
         )
 
         metrics = {
@@ -281,7 +281,7 @@ def main(global_rank, local_rank, world_size, args):
             # Visualize some predictions
             if cfg.VISUALIZE_PREDICTIONS:
                 predictions_np = visualize_predictions(
-                    model, X_test_normalized, y_test_norm, z_fine_test_norm,
+                    model, X_test_normalized, y_test_norm,
                     save_path=cfg.VISUALIZATION_SAVE_PATH,
                     total_pixels_to_crop_on_each_dim=cfg.TOTAL_PIXELS_TO_CROP_ON_EACH_DIM,
                     cell_size_ratio=cellsize_ratio_train,
@@ -300,17 +300,13 @@ def main(global_rank, local_rank, world_size, args):
                     NUMBER_OF_SUBDOMAINS=cfg.NUMBER_OF_SUBDOMAINS,
                     NUMBER_OF_COLUMNS_IN_SUBDOMAINS=cfg.NUMBER_OF_COLUMNS_IN_SUBDOMAINS,
                     evaluation_mask=evaluation_mask,
-                    evaluation_mask_path=(
-                        cfg.EVALUATION_DOMAIN_DEM_PATH
-                        if cfg.EVALUATION_DOMAIN_DEM_PATH is not None
-                        else cfg.Z_FINE_PATH
-                    )
+                    evaluation_mask_path=effective_mask_path
                 )
 
             if cfg.PREDICTIONS_OF_REAL_CASE:
                 print("\nMaking predictions for real case...\n")
-                X_real_case, y_real_case, z_fine_real_case = prepare_real_case_inputs( #! FALTARÍA ESTUDIAR TEMA DEL PADDING
-                    cfg.H_COARSE_REAL_CASE_DATA_PATH, cfg.Z_FINE_PATH, cfg.TOPO_DATA_PATHS, norm_params, device,
+                X_real_case, y_real_case = prepare_real_case_inputs(
+                    cfg.H_COARSE_REAL_CASE_DATA_PATH, cfg.TOPO_DATA_PATHS, norm_params, device,
                     H_FINE_REAL_CASE_DATA_PATH=cfg.H_FINE_REAL_CASE_DATA_PATH,
                     LOG1P_EXP1M_TRANSFORM=cfg.LOG1P_EXP1M_TRANSFORM
                 )
@@ -323,7 +319,7 @@ def main(global_rank, local_rank, world_size, args):
                         )
                     # Evaluate model on real case
                     model_metrics_tuple, subgrid_metrics_tuple, bicubic_metrics_tuple = evaluate_model(
-                        model, criterion, X_real_case, y_real_case, z_fine_real_case,
+                        model, criterion, X_real_case, y_real_case,
                         log1p_exp1m_transform=cfg.LOG1P_EXP1M_TRANSFORM,
                         normalization_parameters=norm_params,
                         error_threshold=cfg.THRESHOLD,
@@ -339,11 +335,7 @@ def main(global_rank, local_rank, world_size, args):
                         NUMBER_OF_SUBDOMAINS=cfg.NUMBER_OF_SUBDOMAINS,
                         measure_unet_cost=True,
                         evaluation_mask=evaluation_mask,
-                        evaluation_mask_path=(
-                            cfg.EVALUATION_DOMAIN_DEM_PATH
-                            if cfg.EVALUATION_DOMAIN_DEM_PATH is not None
-                            else cfg.Z_FINE_PATH
-                        )
+                        evaluation_mask_path=effective_mask_path
                     )
 
                     metrics = {
@@ -367,7 +359,7 @@ def main(global_rank, local_rank, world_size, args):
                     # Visualize predictions for real case
                     if cfg.VISUALIZE_PREDICTIONS:
                         predictions_real_case_np = visualize_predictions(
-                            model, X_real_case, y_real_case, z_fine_real_case,
+                            model, X_real_case, y_real_case,
                             save_path=cfg.VISUALIZATION_SAVE_PATH + '_RealCase',
                             total_pixels_to_crop_on_each_dim=cfg.TOTAL_PIXELS_TO_CROP_ON_EACH_DIM,
                             cell_size_ratio=cellsize_ratio_real_case,
@@ -386,11 +378,7 @@ def main(global_rank, local_rank, world_size, args):
                             NUMBER_OF_SUBDOMAINS=cfg.NUMBER_OF_SUBDOMAINS,
                             NUMBER_OF_COLUMNS_IN_SUBDOMAINS=cfg.NUMBER_OF_COLUMNS_IN_SUBDOMAINS,
                             evaluation_mask=evaluation_mask,
-                            evaluation_mask_path=(
-                                cfg.EVALUATION_DOMAIN_DEM_PATH
-                                if cfg.EVALUATION_DOMAIN_DEM_PATH is not None
-                                else cfg.Z_FINE_PATH
-                            )
+                            evaluation_mask_path=effective_mask_path
                         )
 
                     print(f"Real case predictions saved to {cfg.VISUALIZATION_SAVE_PATH + '_RealCase'}...")

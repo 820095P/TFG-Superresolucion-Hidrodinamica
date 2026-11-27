@@ -207,7 +207,6 @@ def panel(datos: dict[str,np.ndarray], caso: dict, instante: int,
         visible = np.ma.masked_where(matriz <= umbral_agua, visible)
         axs[0,col].imshow(visible, cmap=cmap_agua, norm=norma_agua,
                           extent=extent, origin="upper", interpolation="nearest", aspect="equal")
-        axs[0,col].set_title(etiqueta, fontsize=11)
         axs[0,col].set_axis_off()
 
     axs[1,0].set_axis_off()
@@ -215,19 +214,20 @@ def panel(datos: dict[str,np.ndarray], caso: dict, instante: int,
         ("unet", "U-Net"), ("bicubic", "bicubica"), ("subgrid", "subgrid")
     ), start=1):
         imagen = np.ma.masked_invalid(errores[nombre])
+        imagen = np.ma.masked_less(imagen, 10.0)
         axs[1,col].imshow(imagen, cmap=cmap_error, norm=norma_error,
                           extent=extent, origin="upper", interpolation="nearest", aspect="equal")
-        axs[1,col].set_title(f"Error absoluto: {etiqueta}", fontsize=11)
         axs[1,col].set_axis_off()
 
     cax_agua = fig.add_axes([.89, .55, .016, .30])
     cb_agua = fig.colorbar(plt.cm.ScalarMappable(norm=norma_agua, cmap=cmap_agua), cax=cax_agua)
-    cb_agua.set_label("Profundidad de agua (m)", fontsize=10)
+    cb_agua.set_label("Profundidad de agua (m)", fontsize=14)
+    cb_agua.ax.tick_params(labelsize=13)
     cax_error = fig.add_axes([.89, .105, .016, .30])
     cb_error = fig.colorbar(plt.cm.ScalarMappable(norm=norma_error, cmap=cmap_error), cax=cax_error)
-    cb_error.set_label("Error absoluto (mm)", fontsize=10)
+    cb_error.set_label("Error absoluto (mm)", fontsize=14)
+    cb_error.ax.tick_params(labelsize=13)
 
-    fig.suptitle(f"Comparacion de metodos - {caso['titulo']} - instante {instante}", fontsize=15)
     destino.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(destino, dpi=320, bbox_inches="tight", facecolor="white")
     if guardar_pdf:
